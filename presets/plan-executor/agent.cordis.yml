@@ -1,0 +1,76 @@
+# plan-executor — a MINIMAL-WHITELIST agent preset.
+#
+# Built by trimming the `standard` roster down to what executing a written plan
+# actually needs: read/edit files, search, run commands, track a todo list, and
+# hand results back. Deliberately absent: subagent control, workflow, browser,
+# teams, taskboard, univer — none of which a plan-execution turn calls for.
+#
+# Same composition rules as every preset file: a service row must sit inside a
+# group carrying an `isolate` realm, and host-plane concerns (registries,
+# sandbox, persistence, model route) stay in the host composition.
+#
+# MEASURED, not assumed. In a stock `dsh web` profile this preset yields 14
+# tools: read, write, edit, glob, grep, pwsh, read_image, todo_write,
+# job_list/kill/output, web_search, web_fetch, backup_dsh.
+#
+# Reaching 14 required BOTH halves:
+#   1. this whitelist, and
+#   2. disabling the host bundles that inject the rest
+#      (see ../tools/profile-tool-switch.ps1).
+# The preset alone cannot remove host-injected tools — see ../presets/README.md.
+#
+# REQUIRED CONFIG — several rows refuse to mount without an explicit config,
+# and the mount error names only the FIRST failing row. Copy these verbatim:
+#   tool-fs-search  -> sampleOverCapGlobResults
+#   tool-todo       -> allowParallelInProgress
+#   tool-subagent   -> provider / toolName / backgroundMode
+# Read the real values out of the host with:
+#   dsh --profile web --dump-config
+# and copy the block for the row id you are adding.
+
+# ── identity ────────────────────────────────────────────────────────────────
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    suffix: Your working directory is {{cwd}}.
+    prefix: "You are the Plan Executor. You receive a written plan (a markdown document) and carry it out. Work through it item by item. Verify each step before moving on, and report honestly — a blocked step is reported as blocked, never quietly skipped."
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# ── shell ───────────────────────────────────────────────────────────────────
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+# ── filesystem ──────────────────────────────────────────────────────────────
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+# ── progress reporting ──────────────────────────────────────────────────────
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: true
+
+# ── web lookup (plan research / API verification) ───────────────────────────
+
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'

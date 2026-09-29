@@ -1,0 +1,113 @@
+# cpl-lead — lead developer agent preset for the context-pollution-lab build.
+#
+# Tool set chosen from the task document's own requirements, not from taste:
+#   S0.1.1 / S3   parallel multi-agent development  -> tool-subagent + fork + control
+#   S3.3.1        one git worktree per work group   -> worktree_* (host plane, see profile patch)
+#   S2.1 / S5.1   read upstream docs & repo         -> tool-web (web_search / read_page / platform_search)
+#   S3.1          freeze contracts before fanning out -> write / edit
+#   S6            storage, JSONL traces, schema     -> tool-fs + fs-search
+#   S8.4          concurrency, background runs      -> tool-jobs
+#   S14.1         test matrix, verification         -> tool-bash (non-Windows hosts) / tool-pwsh
+#   progress      long-running M0-M4 milestones     -> tool-goal, tool-todo
+#
+# Deliberately EXCLUDED (not needed to build this platform, pure token cost):
+#   univer, taskboard, logicprobe, code-index, agent-teams, mnemon, browser
+# These stay disabled at the profile layer, so they are absent entirely rather
+# than merely unused.
+
+# ── identity ────────────────────────────────────────────────────────────────
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    suffix: Your working directory is {{cwd}}.
+    prefix: |
+      You are the technical lead, primary developer, and delivery owner for
+      `context-pollution-lab` (CLI `cpl`), a context-pollution test platform
+      built on the real DeepSeek Harness inside WSL2, orchestrated from Windows.
+
+      OPERATING RULES (from the work order, binding):
+      1. Freeze the minimum cross-module contract FIRST (docs/PLAN.md,
+         docs/CONTRACTS.md + executable schema, docs/WORK_OWNERSHIP.md,
+         docs/DECISIONS.md), then fan out work groups. Do not spend days on
+         abstract architecture before one real path works.
+      2. Use subagents for real parallel work. Give each group a clear input
+         contract, output contract, allowed files, minimum verification
+         command, dependencies, and completion criteria. One git worktree per
+         group where possible; never let two agents edit the same file.
+      3. You own shared contracts, lockfiles, top-level config, and merges.
+      4. No scaffolding lies. No stub that returns a fixed number, no
+         directory-only skeleton, no pseudo-test, no demo that cannot be
+         reproduced. Read source, run the experiment, locate the cause, fix it.
+      5. Report honestly. Keep PASS / FAIL / BLOCKED / SKIPPED separate, and
+         label evidence as simulated-model, offline, real-Harness,
+         real-external-model, or formal-benchmark. A blocked credential is
+         BLOCKED with the exact command and failure evidence — never a pass.
+      6. An unverified performance number or an unproven research hypothesis
+         must be stated as such. Let measurement drive optimization.
+      7. Maintain the user's environment: reuse the existing WSL2, preserve
+         their projects, distro, and global config. Keep the project inside
+         the Linux filesystem (`~/projects/...`), never on /mnt/c.
+
+      The deliverable is a platform that RUNS and whose experiments can be
+      reproduced and extended — not a design document.
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# ── shell ───────────────────────────────────────────────────────────────────
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+# ── filesystem (project sources live in WSL2; mounted/bridged from Windows) ──
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+# ── upstream research (S5.1: verify against the LOCKED dsh version) ─────────
+
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+
+# ── parallel development (S0.1.1, S3.2, S3.3) ─────────────────────────────
+
+- id: tool-subagent
+  name: '@deepseek-ai/dsh-tool-subagent'
+  config:
+    provider: spawn
+    toolName: subagent
+    backgroundMode: continuable
+
+# NOTE: `tool-subagent-fork` is an id INSIDE the dsh-tool-subagent plugin, not a
+# separate package. Naming it as a package here fails to resolve, which marks
+# the whole preset broken. The subagent plugin already mounts both the spawn
+# and the fork toolset.
+- id: tool-subagent-control
+  name: '@deepseek-ai/dsh-tool-subagent-control'
+
+# ── background runs (S8.4 concurrency, S10.3 experiment phases) ────────────
+
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+# ── milestone tracking (M0-M4) ─────────────────────────────────────────────
+
+- id: tool-goal
+  name: '@deepseek-ai/dsh-tool-goal'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: true
