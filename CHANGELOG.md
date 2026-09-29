@@ -2,6 +2,46 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.2] — 2026-09-30
+
+仓库改名：`dsh-preset-studio` → **`dsh-toolsmith`**，并更新全部内部引用。
+
+### 改名的理由
+
+`dsh-preset-*` 是一个拥挤且不准确的命名空间。竞品调查（`topic:dsh-plugin` 搜索 +
+dshfind.com 榜单）显示同类名称已有 `dsh-preset-plus`、`dsh-preset-enhance`、
+`dsh-roleplay-preset`、`dsh-anchored-standard`、`dsh-routing-suite` 等多个占用者，
+其中若干星数远高于本项目。
+
+更根本的问题是**名字描述错了东西**。本项目的差异化不是「preset」——preset 只是
+实现手段之一；真正的主张是「按任务定制最小工具集」。市场里高星插件的命名规律是
+**描述能力而非描述文件格式**（`dsh-vision-router`、`dsh-hub-cli`、`anysearch-dsh`）。
+
+`dsh-toolsmith` 满足三个条件：可被搜到、描述能力而非格式、不落入 preset 命名红海，
+且不与官方 `dsh-tool-*` 系列冲突。
+
+旧地址 `jijiwu3526/dsh-preset-studio` 由 GitHub 自动重定向，不会失效。
+
+### 变更
+
+- 仓库更名为 `jijiwu3526/dsh-toolsmith`（GitHub 侧，保留重定向）
+- `README.md`：2 处 `git clone` 与 `cd` 目录名
+- `pyproject.toml`：`Homepage` / `Issues` 指向新地址
+- `docs/experience/安装与运维.md`、`docs/experience/本机配置经验.md`：交叉引用
+
+**PyPI 包名 `dsh-conversation-studio` 与两个控制台脚本 `dsh-session` / `dshstudio`
+保持不变**——那是 pip 与用户 shell 的既有契约，与仓库名无关，改动会造成不必要的
+破坏性变更。
+
+### 附带发现（本次未修）
+
+内置的 `preset-standard` 引用了 `@deepseek-ai/dsh-workflow-worker-thread`，
+而该包在 DSH 0.2 的安装中**不存在**（0.1 存在；0.2 改用 `@deepseek-ai/dsh-workflow`，
+但后者没有 `dsh.bundle` 声明，因而不贡献任何 row）。这使 `preset-standard` 与
+`preset-ptc` 同样处于 `broken` 状态——名称解析不出来的行会让整份组装拒绝挂载。
+属于上游问题，不在本仓库范围内。
+
+
 ## [0.4.1] — 2026-09-29
 
 ### 仓库页面

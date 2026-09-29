@@ -26,8 +26,8 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/jijiwu3526/dsh-preset-studio"
-Issues = "https://github.com/jijiwu3526/dsh-preset-studio/issues"
+Homepage = "https://github.com/jijiwu3526/dsh-toolsmith"
+Issues = "https://github.com/jijiwu3526/dsh-toolsmith/issues"
 
 [project.scripts]
 dsh-session = "dsh_session:main"

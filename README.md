@@ -13,8 +13,8 @@
 终端手抄。仅用 Python 标准库，不发送任何遥测。
 
 ```bash
-git clone git@github.com:jijiwu3526/dsh-preset-studio.git
-cd dsh-preset-studio
+git clone git@github.com:jijiwu3526/dsh-toolsmith.git
+cd dsh-toolsmith
 python -m pip install .        # not on PyPI — install from source
 ```
 
@@ -425,8 +425,8 @@ Full detail, including the exact error messages, is in
 ## Install
 
 ```bash
-git clone git@github.com:jijiwu3526/dsh-preset-studio.git
-cd dsh-preset-studio
+git clone git@github.com:jijiwu3526/dsh-toolsmith.git
+cd dsh-toolsmith
 python -m pip install .                      # not on PyPI
 dsh plugin --profile web add github:jijiwu3526/dsh-local-bridge
 # then fully restart DSH (a page refresh is not enough)
