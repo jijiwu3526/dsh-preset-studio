@@ -421,7 +421,8 @@ MIT.
 | [`docs/reviews/REVIEW.md`](docs/reviews/REVIEW.md) | 首轮独立评审发现 |
 | [`docs/reviews/PRESET-TEST-PLAN.md`](docs/reviews/PRESET-TEST-PLAN.md) | 预设裁剪边界的实测计划与数据 |
 | [`docs/测试记录.md`](docs/测试记录.md) | 测试执行记录 |
-| [`docs/experience/按任务定制预设.md`](docs/experience/按任务定制预设.md) | **按任务定制工具集**：分层模型、工作流、踩坑 |
+| [`docs/experience/按任务定制预设.md`](docs/experience/按任务定制预设.md) | **按任务定制工具集**：分层模型、工作流、踩坑（0.1 时代机制，0.2 部分过时） |
+| [`docs/experience/DSH-0.2-迁移笔记.md`](docs/experience/DSH-0.2-迁移笔记.md) | **0.1.5 → 0.2.0-rc.1 迁移笔记**：渠道、settings.yaml 移除、Preset 机制重写、认证链断点、迁移检查清单 |
 | [`docs/experience/安装与运维.md`](docs/experience/安装与运维.md) | **安装与运维**：git 绕行、本机环境、已知测试失败 |
 | [`presets/README.md`](presets/README.md) | 预设留档说明与恢复方式 |
 | [`plugin/README.md`](plugin/README.md) | 桥接插件的安全模型与降级链 |
