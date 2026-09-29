@@ -1,29 +1,64 @@
 # DSH Preset Studio
 
-> 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 创建、归档并**记忆** Agent Preset 会话，
-> 并**按任务定制一套最小工具集**。
-> 仅用 Python 标准库，只连接本机 DSH，不发送任何遥测。
+**[English](#english)** · 中文
 
-> **本仓库由 `dsh-skillmaster` 与 `dsh-local-bridge` 合并而来。**
-> 合并前是两个仓库：前者是 Python 工具集，后者是配套的 DSH 插件。
-> 现在 `plugin/` 就是那个插件的源码，`tools/` 多了一个 profile 层工具开关。
+> Create, archive and **remember** DeepSeek Harness agent-preset sessions — and
+> assemble a **task-specific minimal tool set** for each job.
+> Standard library only, talks to a local DSH, no telemetry.
+
+给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 创建、归档并
+**记忆** Agent Preset 会话，并**按任务定制一套最小工具集**。
+仅用 Python 标准库，只连接本机 DSH，不发送任何遥测。
 
 ```bash
 git clone git@github.com:jijiwu3526/dsh-preset-studio.git
 cd dsh-preset-studio
-python -m pip install .        # PyPI 上没有这个包，必须从源码装
+python -m pip install .        # not on PyPI — install from source
 ```
 
-## 新增：按任务定制工具集
+## 两个问题，一个仓库
+
+本仓库由 [`dsh-skillmaster`](https://github.com/jijiwu3526/dsh-skillmaster) 与
+[`dsh-local-bridge`](https://github.com/jijiwu3526/dsh-local-bridge) 合并而来。
+合并前是两个仓库：前者是 Python 工具集，后者是它依赖的 DSH 插件——现在插件源码就在
+`plugin/` 下。
+
+### 一、让本机 CLI 能自己取得认证
+
+`dsh-session` / `dshstudio` 是进程外工具，需要 DSH Web 的带 token URL。
+不装插件时唯一获取方式是人从终端手抄，token 于是进入 shell 历史、CI 日志和聊天记录。
+
+`plugin/` 里的插件跑在 DSH **进程内部**，那里可以随时铸造一个新鲜的带 token URL，
+通过 loopback 路由交给本机工具。三层防护：仅 loopback、每次启动轮换的 32 字节
+共享密钥、URL 不落盘不记日志。
+
+### 二、按任务定制工具集
 
 > 完整记录见 **[`docs/experience/按任务定制预设.md`](docs/experience/按任务定制预设.md)**。
 
 **诉求**：跟智能体说清任务，让它现场配一套只含本次所需工具的预设，并建好会话。
 
-**为什么单靠 preset 做不到**：preset 是**叠加层**，改不动宿主 profile 注入的工具。
-本机实测：白名单 preset 单独用，117 → 101，几乎没变。
+**为什么单靠 preset 做不到**——这是最容易踩空的一点。`agent.cordis.yml` 是
+**叠加层**不是替代层，官方文档原文：
 
-**解法是两层叠加**：
+> 没有本包时，会话只能回退到宿主组装挂载的内容。
+
+preset 能加工具、能覆盖行配置，但**移不掉宿主 profile 已注入的工具**。
+本机实测：白名单 preset 单独使用，工具数 117 → 101，几乎没变。
+
+```
+┌─ profile 层 ────────────────────────────────┐
+│  cordis.patch.yml（在所有 bundle 之后应用）   │
+│  → disabled: true 胜出，能反向关掉 bundle     │
+│  → tools/profile-tool-switch.ps1             │
+└──────────────────────────────────────────────┘
+                    ↓ 决定工具集上限
+┌─ preset 层 ─────────────────────────────────┐
+│  agent.cordis.yml（叠加层）                   │
+│  → 在上限内精确挑选 + 注入 persona 纪律        │
+│  → presets/*/agent.cordis.yml                │
+└──────────────────────────────────────────────┘
+```
 
 | 层 | 作用 | 工具 |
 | --- | --- | --- |
@@ -41,6 +76,9 @@ dsh-session new --preset plan-executor --workspace-path "C:\your\project" --regi
 ```
 
 实测 **101 → 14 个工具**，且与 preset 白名单严丝合缝。
+
+> **唯一可信的验证方式是读会话日志**，不是看配置、不是问模型。
+> 实测同一预设在「问模型你有哪些工具」时得到过 13 / 2 / 0 三种不同自述结果。
 
 ## 它解决什么
 
@@ -251,6 +289,12 @@ python3 -m dshstudio.cli incident review-focused "挂载失败：prefix missing"
 | `dshstudio/profile.py` | 从会话归档提取预设的权威工具面 |
 | `dshstudio/memory.py` | 预设画像、使用偏好、故障记录的持久化与推荐 |
 | `dshstudio/cli.py` | 记忆与一键建会话的命令行入口 |
+| `dsh_bridge.py` | 三级降级链取得带 token 的 URL：桥接插件 → `DSH_WEB_URL` → 裸 origin |
+| `plugin/` | `dsh-local-bridge` 的 DSH 插件源码（进程内铸造 token 的那一个） |
+| `tools/profile-tool-switch.ps1` | **profile 层工具开关**——preset 动不了宿主注入的工具，这里可以 |
+| `presets/` | 实际使用的预设留档。DSH 的 preset API 是只读的，删了即永久丢失 |
+| `docs/experience/按任务定制预设.md` | **按任务定制工具集的完整实践记录与踩坑** |
+| `docs/experience/安装与运维.md` | 安装路径、git 绕行、本机环境备忘、已知测试失败 |
 | `templates/01-需求访谈提示词.md` | 规划会话中的问答流程 |
 | `templates/02-工作用途与预设规格.md` | 用户确认的业务规则与预设清单 |
 | `templates/03-Creator制作指令.md` | 交给 DSH Creator 的施工任务 |
@@ -258,16 +302,127 @@ python3 -m dshstudio.cli incident review-focused "挂载失败：prefix missing"
 | `docs/会话资料保存方案.md` | 聊天和配置的留存、脱敏与回溯 |
 | `docs/协议与版本.md` | 新旧 Web 协议与 Preset 格式演进 |
 | `docs/资料来源.md` | 上游依据与核对日期 |
-| `tests/test_dsh_session.py` | 模拟两代 DSH Web 的协议测试 |
-| `tests/test_memory.py` | 画像提取、记忆持久化与推荐排序测试 |
-| `tests/test_bridge.py` | 桥接客户端的三级回退与传输失败降级测试 |
-| `tests/test_packaging.py` | 打包元数据：本地 import 是否都被打进 wheel |
+| `tests/` | 协议、画像提取、桥接降级、打包元数据，共 67 项 |
 
-运行测试：`python3 -m unittest discover -s tests -v`（67 项）。
+运行测试：`python -m unittest discover -s tests -v`（67 项）。
+插件测试：`cd plugin && node --test`（32 项）。
+
+> Windows 上有 3 项 Python 测试与 2 项 node 测试失败，**均为平台差异而非缺陷**：
+> NTFS 用 ACL 没有 Unix 权限位，以及中文 Windows 的默认 GBK 解码。
+> 详见 [`docs/experience/安装与运维.md`](docs/experience/安装与运维.md) 第 5 节。
 
 ---
 
-# 附：工具包原始文档
+<a id="english"></a>
+# English
 
-以下为本工具包随附的设计、协议与流程文档。
+## What this is
+
+A toolkit for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+(`dsh`) that does two things:
+
+1. **Lets local CLIs authenticate themselves.** DSH prints a startup URL carrying a
+   one-shot token; every later `/api` call authenticates with the HttpOnly cookie that
+   URL exchanges for. Out-of-process tools therefore need that URL — and the only way to
+   get it today is for a human to copy it off the terminal, which puts the token into
+   shell history, CI logs and chat transcripts. The plugin in `plugin/` runs *inside* the
+   DSH process, where a fresh authenticated URL can be minted on demand, and hands it to
+   local tools over a loopback route (loopback-only + a per-boot 32-byte shared secret;
+   the URL is never written to disk or logged).
+
+2. **Assembles a task-specific minimal tool set.** Tell the agent what the job is; it
+   builds a preset containing only the tools that job needs, then opens a session with it.
+
+## The non-obvious part
+
+An agent preset is an **overlay, not a replacement**. The official package docs say:
+
+> Without this package, a session can only fall back to what the host composition mounts.
+
+A preset can add tools and can shadow a row's config, but it **cannot remove** a tool the
+host profile already injects. Measured on a stock `dsh web` profile: a minimal-whitelist
+preset alone took the tool count from 117 to 101 — almost nothing, because the ~100 host
+tools stayed.
+
+Trimming actually works only when both layers move together:
+
+| Layer | Role |
+| --- | --- |
+| `~/.dsh/profiles/<p>/cordis.patch.yml` | Decides the **ceiling**. Applied *after* every bundle layer, so `disabled: true` wins. Driven by `tools/profile-tool-switch.ps1`. |
+| `agent.cordis.yml` | **Selects precisely** within that ceiling and injects persona discipline. |
+
+Measured result: **101 → 14 tools**, matching the preset whitelist exactly.
+
+## Verify the truth, not the config
+
+Do not trust the config, and do not ask the model. Read the authoritative tool list DSH
+actually sent, from the `request/header` event in the session log:
+
+```python
+import zstandard, json, io
+d = zstandard.ZstdDecompressor()
+with open(LOG, 'rb') as fh:            # session.v3.jsonl.zstd, zstd-compressed
+    with d.stream_reader(fh) as r:
+        for line in io.TextIOWrapper(r, encoding='utf-8', errors='replace'):
+            e = json.loads(line)
+            if e.get('type') == 'request/header':
+                print([x['name'] for x in e['data']['header']['tools']])
+                break
+```
+
+Asking the model "what tools do you have" is unreliable — measured on this machine, the
+same preset produced 13, 2 and 0 tools across three self-reports.
+
+## Gotchas worth knowing
+
+- **Row id ≠ bundle name.** `dsh-mnemon` injects a `cordis:group` whose row id is
+  `mnemon-bundle`. Writing `- id: mnemon` fails **silently**.
+- **Missing required config reports only the first failing row.** Read the real values out
+  of `dsh --profile web --dump-config` instead of fixing them one at a time.
+- **`tool-subagent-fork` is not a package** — it is a row *inside* `dsh-tool-subagent`.
+- **`persona.prefix` is mandatory**, even when everything you wrote lives in `suffix`.
+- **Installed ≠ active.** A dependency absent from `dsh.profile.bundles` with no
+  `dsh.bundle` declaration is a dead package; activate it with an `- insert:` row.
+- **`--register-workspace` is not optional.** Without it the session gets a `cwd` but no
+  `workspaceId`, and the sidebar files it under "ungrouped".
+
+Full detail, including the exact error messages, is in
+[`docs/experience/按任务定制预设.md`](docs/experience/按任务定制预设.md).
+
+## Install
+
+```bash
+git clone git@github.com:jijiwu3526/dsh-preset-studio.git
+cd dsh-preset-studio
+python -m pip install .                      # not on PyPI
+dsh plugin --profile web add github:jijiwu3526/dsh-local-bridge
+# then fully restart DSH (a page refresh is not enough)
+```
+
+If `git` cannot reach `github.com:443` but SSH works, see
+[`docs/experience/安装与运维.md`](docs/experience/安装与运维.md).
+
+## License
+
+MIT.
+
+---
+
+# 附：随附文档
+
+本工具包随附的设计、协议与流程文档。
+
+| 文档 | 内容 |
+| --- | --- |
+| [`docs/设计稿.md`](docs/设计稿.md) | 流程、数据模型、边界与验收设计 |
+| [`docs/协议与版本.md`](docs/协议与版本.md) | 新旧 Web 协议与 Preset 格式的演进 |
+| [`docs/会话资料保存方案.md`](docs/会话资料保存方案.md) | 聊天与配置的留存、脱敏与回溯 |
+| [`docs/资料来源.md`](docs/资料来源.md) | 上游依据与核对日期 |
+| [`docs/reviews/REVIEW.md`](docs/reviews/REVIEW.md) | 首轮独立评审发现 |
+| [`docs/reviews/PRESET-TEST-PLAN.md`](docs/reviews/PRESET-TEST-PLAN.md) | 预设裁剪边界的实测计划与数据 |
+| [`docs/测试记录.md`](docs/测试记录.md) | 测试执行记录 |
+| [`docs/experience/按任务定制预设.md`](docs/experience/按任务定制预设.md) | **按任务定制工具集**：分层模型、工作流、踩坑 |
+| [`docs/experience/安装与运维.md`](docs/experience/安装与运维.md) | **安装与运维**：git 绕行、本机环境、已知测试失败 |
+| [`presets/README.md`](presets/README.md) | 预设留档说明与恢复方式 |
+| [`plugin/README.md`](plugin/README.md) | 桥接插件的安全模型与降级链 |
 
