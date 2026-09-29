@@ -2,6 +2,37 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.1] — 2026-09-29
+
+修复 0.4.0 合并后 6 个 CI job 全部变红的问题。三处根因彼此独立，都不是代码缺陷。
+
+### 修复
+
+- **plugin-copy job 指向了已删除的路径。** 0.4.0 把插件源码从
+  `dsh_bridge/plugin/` 移到顶层 `plugin/` 并删除了旧副本，CI 却仍在比对
+  `dsh_bridge/plugin/`，于是报 `No such file or directory`。
+  **没有删掉这个 job，而是改为校验 `plugin/` 与上游一致**——实测四个文件
+  与 `jijiwu3526/dsh-local-bridge` 的 `main` **逐字节相同**（`plugin/` 是活副本，
+  漂移检查因此比以前更有价值）。同时新增 `.gitattributes`，把这四个文件钉在
+  LF：本机 `core.autocrlf=true`，否则在 Windows 上改一次 `plugin/` 就会因
+  行尾符让该 job 假红。
+- **测试计数检查把 node 套件的 32 项当成了 Python 套件的计数。** README 中
+  `（32 项）` 紧跟在 `cd plugin && node --test` 之后，描述的是插件自带的
+  node 测试；而 0.4.0 新增测试后 Python 套件已是 67 项，检查因此在 3.10–3.13
+  上全红。改为按行判断所属套件，分别与 `unittest` 和 `node --test` 的实际
+  计数比对。
+- **文档里写了真实的 Windows 用户名。** `docs/experience/` 下两处
+  `C:/Users/Administrator/...` 触发 Secret scan。改为
+  `$env:USERPROFILE` 动态拼接；两处描述「相对路径被多解析一层」的反例也
+  一并改写（原文同样含 `/Users/`，只是不含用户名）。扫描规则同时显式覆盖
+  Windows 盘符形式，不再依赖 `/Users/` 恰好匹配到 `C:\Users\`。
+
+### 事实澄清
+
+本机 Windows 上 Python 套件 67 项中有 2 项失败、node 套件 32 项中有 2 项失败，
+均为平台差异（NTFS 无 Unix 权限位、中文 Windows 默认 GBK 解码）。
+**Linux CI 上 67 项全部通过**，此前「Python job 是测试挂了」的判断不成立。
+
 ## [0.4.0] — 2026-09-29
 
 合并 `dsh-skillmaster` 与 `dsh-local-bridge` 为单一仓库，并新增**按任务定制

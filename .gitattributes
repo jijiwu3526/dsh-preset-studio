@@ -1,0 +1,7 @@
+# CI byte-compares plugin/ against the upstream dsh-local-bridge repo. A CRLF
+# committed from a Windows editor would fail that check without changing a
+# single line of real content, so these paths are pinned to LF in the index.
+plugin/lib/index.js      text eol=lf
+plugin/lib/types/index.d.ts text eol=lf
+plugin/package.json      text eol=lf
+plugin/cordis.patch.yml  text eol=lf

@@ -53,7 +53,7 @@ jobs:
       - name: README test count matches reality
         run: |
           python - <<'PY'
-          import re, subprocess, sys
+          import re, shutil, subprocess, sys
           out = subprocess.run(
               [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
               capture_output=True, text=True)
@@ -61,30 +61,50 @@ jobs:
           if not m:
               print(out.stderr[-800:]); raise SystemExit("could not count tests")
           actual = int(m.group(1))
+          # The plugin ships its own Node suite with its own count. README
+          # quotes both numbers on adjacent lines, and "（32 项）" after
+          # `node --test` is not a claim about this suite — reading it as one
+          # is what made this job fail on an otherwise correct README.
+          node = shutil.which("node")
+          node_actual = None
+          if node:
+              nout = subprocess.run([node, "--test"], cwd="plugin",
+                                    capture_output=True, text=True)
+              mn = re.search(r"^# tests (\d+)$", nout.stdout, re.M)
+              node_actual = int(mn.group(1)) if mn else None
           # A "N 项" claim is only about the suite when it is a bare number.
           # "4/4 项需求" is a ratio in sample output, and "17 项" elsewhere
           # would be a per-module breakdown — so require the run to be the
           # whole test-suite phrasing.
+          def expected(line):
+              if "node --test" in line:
+                  return node_actual
+              return actual
           bad = []
           for i, line in enumerate(
                   open("README.md", encoding="utf-8").read().splitlines(), 1):
-              for n in re.findall(r"(?<![\d/])(\d+)\s*项(?:自动化测试|（|）)", line):
-                  if int(n) != actual:
-                      bad.append(f"README.md:{i} says {n} 项, suite runs {actual}")
-              for n in re.findall(r"#\s*(\d+)\s*项", line):
-                  if int(n) != actual:
-                      bad.append(f"README.md:{i} says {n} 项, suite runs {actual}")
+              for pattern in (r"(?<![\d/])(\d+)\s*项(?:自动化测试|（|）)",
+                               r"#\s*(\d+)\s*项"):
+                  for n in re.findall(pattern, line):
+                      want = expected(line)
+                      if want is not None and int(n) != want:
+                          suite = "node" if want is node_actual else "python"
+                          bad.append(f"README.md:{i} says {n} 项, "
+                                     f"{suite} suite runs {want}")
           if bad:
               raise SystemExit("stale test count:\n  " + "\n  ".join(bad))
           print(f"ok: every README claim matches the suite size ({actual})")
           PY
 
-  # The deprecated in-repo copy of the plugin must not drift from the real one.
-  # It is kept only for history, but if it is ever edited independently the two
-  # files start disagreeing about the route path — which is exactly the class of
-  # bug that already bit this project twice.
+  # `plugin/` is the live, authoritative copy of the dsh-local-bridge plugin.
+  # It must not drift from upstream: a local edit that is not also pushed
+  # upstream leaves users installing something the README does not describe,
+  # which is the class of bug that already bit this project twice.
+  #
+  # The byte comparison is deliberate. A whitespace-insensitive diff would
+  # pass while the route path — the thing that actually breaks — moved.
   plugin-copy:
-    name: Deprecated plugin copy matches upstream
+    name: Plugin copy matches upstream
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,10 +112,10 @@ jobs:
         run: |
           base=https://raw.githubusercontent.com/jijiwu3526/dsh-local-bridge/main
           for pair in \
-            "lib/index.js:dsh_bridge/plugin/index.js" \
-            "lib/types/index.d.ts:dsh_bridge/plugin/index.d.ts" \
-            "package.json:dsh_bridge/plugin/package.json" \
-            "cordis.patch.yml:dsh_bridge/plugin/cordis.patch.yml"; do
+            "lib/index.js:plugin/lib/index.js" \
+            "lib/types/index.d.ts:plugin/lib/types/index.d.ts" \
+            "package.json:plugin/package.json" \
+            "cordis.patch.yml:plugin/cordis.patch.yml"; do
             remote="${pair%%:*}"
             local="${pair##*:}"
             # A transient network failure must not read as "has drifted".
@@ -133,10 +153,14 @@ jobs:
           fi
           echo "ok"
       - name: No machine-specific paths
+        # A real username leaks who runs the project and invites targeted
+        # abuse of the paths it appears in. Both home layouts are checked:
+        # a Windows absolute path also contains "/Users/", but only by
+        # accident of its `C:\Users\` prefix, which is not worth relying on.
         # The pattern itself necessarily lives in this file, so workflow YAML
         # is excluded — otherwise the scan always matches its own source.
         run: |
-          if git grep -n '/Users/' -- . ':!.github/*'; then
+          if git grep -nE '/Users/|[A-Za-z]:[/\\]+Users[/\\]+' -- . ':!.github/*'; then
             echo "::error::a machine-specific absolute path is committed"; exit 1
           fi
           echo "ok"
