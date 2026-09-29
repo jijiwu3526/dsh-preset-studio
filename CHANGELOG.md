@@ -4,7 +4,24 @@
 
 ## [0.4.1] — 2026-09-29
 
-修复 0.4.0 合并后 6 个 CI job 全部变红的问题。三处根因彼此独立，都不是代码缺陷。
+### 仓库页面
+
+- **README 开头重写**，第一屏先给结论再给原理：`117 tools is not a preset. Cut the
+  tool set to the job.`，并给出 101 → 14 的实测数字、一个 30 秒的原理说明和
+  「谁该装」三条。原文先讲「创建、归档并记忆会话」，读者第一眼看不出解决什么
+  问题——而市场页的读者多半只停留十几秒。
+- **仓库 description 改为结果导向**：`Cut the DSH tool set to the job: minimal,
+  task-specific agent presets (117→14 tools) + self-authenticating local CLI.`
+- **topics 补上 `dsh-plugin` 与 `minimal-tools`、`session-management`**。
+  `dsh-plugin` 是 dshfind.com 的数据源，之前**根本没打**，等于不在市场目录里。
+- homepage 指向本仓库在 dshfind.com 的页面。
+- **修正一处事实错误**：原文称 Windows 上有 3 项 Python 测试失败，实测为 2 项。
+- **给具体数字标注版本**：117 → 101 → 14 来自 0.1.x 实测，0.2 已改为 bundle patch
+  行式；文中同时注明「叠加层裁不掉宿主工具」在 0.2 仍成立。
+
+### 修复 CI
+
+0.4.0 合并后 6 个 CI job 全部变红。三处根因彼此独立，都不是代码缺陷。
 
 ### 修复
 
@@ -22,10 +39,10 @@
   上全红。改为按行判断所属套件，分别与 `unittest` 和 `node --test` 的实际
   计数比对。
 - **文档里写了真实的 Windows 用户名。** `docs/experience/` 下两处
-  `C:/Users/Administrator/...` 触发 Secret scan。改为
-  `$env:USERPROFILE` 动态拼接；两处描述「相对路径被多解析一层」的反例也
-  一并改写（原文同样含 `/Users/`，只是不含用户名）。扫描规则同时显式覆盖
-  Windows 盘符形式，不再依赖 `/Users/` 恰好匹配到 `C:\Users\`。
+  绝对路径示例触发了 Secret scan。改为 `$env:USERPROFILE` 动态拼接；两处
+  描述「相对路径被多解析一层」的反例也一并改写（原文同样含用户目录，只是
+  不含用户名）。扫描规则同时显式覆盖 Windows 盘符形式，不再依赖某个目录名
+  恰好出现在其中。
 
 ### 事实澄清
 

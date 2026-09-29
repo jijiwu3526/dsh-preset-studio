@@ -2,19 +2,47 @@
 
 **[English](#english)** · 中文
 
-> Create, archive and **remember** DeepSeek Harness agent-preset sessions — and
-> assemble a **task-specific minimal tool set** for each job.
-> Standard library only, talks to a local DSH, no telemetry.
+> **117 tools is not a preset. Cut the tool set to the job.**
+>
+> Ship a minimal, task-specific tool set with [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+> — measured **101 → 14 tools** — and let a local CLI mint its own authenticated
+> session URL instead of you hand-copying a token. Standard library only, no telemetry.
 
-给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 创建、归档并
-**记忆** Agent Preset 会话，并**按任务定制一套最小工具集**。
-仅用 Python 标准库，只连接本机 DSH，不发送任何遥测。
+给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 配一套**只够本次任务用的
+最小工具集**（实测 117 → 14），并让本机 CLI **自己**取得带 token 的会话 URL，而不是让你从
+终端手抄。仅用 Python 标准库，不发送任何遥测。
 
 ```bash
 git clone git@github.com:jijiwu3526/dsh-preset-studio.git
 cd dsh-preset-studio
 python -m pip install .        # not on PyPI — install from source
 ```
+
+### 谁该装
+
+- 你给智能体一个任务，却发现它拿到 100+ 个工具、抓不住重点；
+- 你想让不同任务用**不同**的工具集，而不是一套通用大工具；
+- 你在写进程外的 DSH 工具，不想每次手工复制带 token 的 URL。
+
+### 30 秒知道原理
+
+Agent preset 是**叠加层，不是替代层**——官方文档原话：「没有本包时，会话只能回退到宿主
+组装挂载的内容。」所以光写 preset 裁不掉宿主的工具，**必须 profile 层和 preset 层一起动**：
+
+| 层 | 作用 | 配在哪 |
+| --- | --- | --- |
+| profile | 决定工具集**上限**（在所有 bundle 之后应用，`disabled: true` 胜出） | `~/.dsh/profiles/<p>/cordis.patch.yml` |
+| preset | 在上限内**精确挑选** + 注入 persona 纪律 | `presets/*/agent.cordis.yml` |
+
+```powershell
+# 关掉本次任务用不到的 bundle —— 上限就降下来了
+.\tools\profile-tool-switch.ps1 -Off univer,mnemon-bundle,dsh-taskboard,logicprobe
+.\tools\profile-tool-switch.ps1 -Verify   # 读合成后的真实配置逐行核实
+```
+
+> 上面的 117 → 101 → 14 是 **0.1.x 实测**数据。0.2 把 preset 改成 bundle patch 行式
+> （`settings.yaml` 已并入 `profiles/<name>/cordis.patch.yml`），但**「叠加层裁不掉宿主工具」
+> 这一条在 0.2 依然成立**。
 
 ## 两个问题，一个仓库
 
@@ -44,7 +72,7 @@ python -m pip install .        # not on PyPI — install from source
 > 没有本包时，会话只能回退到宿主组装挂载的内容。
 
 preset 能加工具、能覆盖行配置，但**移不掉宿主 profile 已注入的工具**。
-本机实测：白名单 preset 单独使用，工具数 117 → 101，几乎没变。
+本机实测（0.1.x）：白名单 preset 单独使用，工具数 117 → 101，几乎没变。
 
 ```
 ┌─ profile 层 ────────────────────────────────┐
@@ -307,8 +335,9 @@ python3 -m dshstudio.cli incident review-focused "挂载失败：prefix missing"
 运行测试：`python -m unittest discover -s tests -v`（67 项）。
 插件测试：`cd plugin && node --test`（32 项）。
 
-> Windows 上有 3 项 Python 测试与 2 项 node 测试失败，**均为平台差异而非缺陷**：
+> Windows 上有 2 项 Python 测试与 2 项 node 测试失败，**均为平台差异而非缺陷**：
 > NTFS 用 ACL 没有 Unix 权限位，以及中文 Windows 的默认 GBK 解码。
+> Linux CI 上 67 项 Python 测试全部通过。
 > 详见 [`docs/experience/安装与运维.md`](docs/experience/安装与运维.md) 第 5 节。
 
 ---
@@ -317,6 +346,9 @@ python3 -m dshstudio.cli incident review-focused "挂载失败：prefix missing"
 # English
 
 ## What this is
+
+**117 tools is not a preset. Cut the tool set to the job.** Measured **101 → 14 tools**
+on a stock profile. Standard library only, no telemetry.
 
 A toolkit for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 (`dsh`) that does two things:
@@ -340,9 +372,10 @@ An agent preset is an **overlay, not a replacement**. The official package docs 
 > Without this package, a session can only fall back to what the host composition mounts.
 
 A preset can add tools and can shadow a row's config, but it **cannot remove** a tool the
-host profile already injects. Measured on a stock `dsh web` profile: a minimal-whitelist
-preset alone took the tool count from 117 to 101 — almost nothing, because the ~100 host
-tools stayed.
+host profile already injects. Measured on a stock `dsh web` profile (0.1.x): a
+minimal-whitelist preset alone took the tool count from 117 to 101 — almost nothing, because
+the ~100 host tools stayed. The overlay limitation still holds on 0.2, which changed presets
+to bundle-patch rows and moved `settings.yaml` into `profiles/<name>/cordis.patch.yml`.
 
 Trimming actually works only when both layers move together:
 
